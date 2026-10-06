@@ -130,6 +130,55 @@ class RedditAPIClient:
             await self._session.close()
             self._session = None
 
+    async def mint_token_v2(self) -> str | None:
+        """Re-mint token_v2 from the long-lived reddit_session cookie.
+
+        Reddit mints a fresh token_v2 (short-lived JWT, ~24h) on any plain
+        page GET when the long-lived reddit_session JWT is still valid. This
+        is the recovery path for the common failure where token_v2 expired
+        but the session itself did NOT — no manual re-login is needed.
+
+        Updates the in-memory cookie dict and the live session jar in place.
+        Returns the fresh token_v2, or None if reddit did not mint one
+        (meaning the reddit_session is itself invalid -> real re-login).
+        """
+        session = await self._get_session()
+        url = f"{REDDIT_BASE_URL}/"
+        try:
+            resp = await session.get(url)
+        except Exception as e:
+            raise RedditMCPError(f"token_v2 mint request failed: {e}") from e
+        if resp.status_code != 200:
+            return None
+
+        # Parse Set-Cookie headers without an external jar dependency.
+        new_token: str | None = None
+        set_cookies = resp.headers.get_list("set-cookie") if hasattr(resp.headers, "get_list") else []
+        if not set_cookies:
+            # fall back to the raw header (some curl_cffi versions join them)
+            raw = resp.headers.get("set-cookie")
+            set_cookies = [raw] if raw else []
+        for header in set_cookies:
+            first = header.split(";", 1)[0]
+            if "=" not in first:
+                continue
+            name, _, value = first.partition("=")
+            name = name.strip()
+            if name in ("token_v2", "csrf_token"):
+                value = value.strip()
+                if not value:
+                    continue
+                self._cookies[name] = value
+                session.cookies.set(name, value, domain=".reddit.com")
+                if name == "token_v2":
+                    new_token = value
+        return new_token
+
+    @property
+    def cookies(self) -> dict:
+        """Live cookie map (may include cookies re-minted at runtime)."""
+        return self._cookies
+
     # === Cookie health check ===
 
     async def check_session(self) -> dict:

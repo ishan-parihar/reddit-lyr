@@ -14,6 +14,10 @@ from reddit_mcp_server.obscura_daemon_integration import (
 )
 from reddit_mcp_server.scraping.api_client import RedditAPIClient
 from reddit_mcp_server.exceptions import SessionExpiredError, AuthenticationError
+from reddit_mcp_server.session_health import (
+    token_v2_stale,
+    reddit_session_usable,
+)
 
 # Daemon integration flag
 # NOTE: the Obscura daemon serves ONE cached cookie set per platform (the
@@ -27,6 +31,37 @@ USE_DAEMON = (
 
 _client = None
 _client_cookies_hash = None
+
+
+async def _remint_token_v2(client: RedditAPIClient) -> str | None:
+    """Attempt a cheap token_v2 re-mint from the long-lived reddit_session.
+
+    Only called when reddit_session is JWT-valid but the client session is
+    anonymous/expired. On success, persists the refreshed cookies so the fix
+    survives process restarts. Returns the fresh token or None.
+    """
+    from reddit_mcp_server.session_state import save_cookies
+
+    logger.info("token_v2 expired but reddit_session JWT valid — attempting re-mint via page GET")
+    try:
+        new_token = await client.mint_token_v2()
+    except Exception as e:
+        logger.warning(f"token_v2 re-mint failed: {e}")
+        return None
+    if new_token:
+        # NOTE: reddit mints a token even for anonymous visitors (loid-grade).
+        # Only the caller's follow-up health check proves the session actually
+        # recovered — a minted-but-anonymous token means reddit_session is
+        # server-side revoked and only a real re-login can fix it.
+        logger.info("token_v2 re-minted (validity confirmed by caller's health check)")
+        try:
+            persisted = {k: v for k, v in client.cookies.items() if k != "cookie_string"}
+            save_cookies(persisted)
+        except Exception as e:
+            logger.warning(f"Failed to persist refreshed cookies: {e}")
+    else:
+        logger.warning("Reddit did not mint a fresh token_v2 — reddit_session likely invalid")
+    return new_token
 
 
 def _cookies_hash(cookies: dict[str, str]) -> str:
@@ -79,6 +114,17 @@ async def get_reddit_client():
     if _client is not None:
         await _client.close()
 
+    # Preemptive re-mint: if the loaded token_v2 is already JWT-expired but
+    # reddit_session is still valid, mint a fresh token_v2 before the first
+    # request instead of letting the health check discover it the hard way.
+    if token_v2_stale(result.cookies) and reddit_session_usable(result.cookies):
+        probe = RedditAPIClient(dict(result.cookies))
+        try:
+            if await _remint_token_v2(probe):
+                result.cookies = dict(probe.cookies)
+        finally:
+            await probe.close()
+
     _client = RedditAPIClient(result.cookies)
     _client_cookies_hash = new_hash
     _source = getattr(result.source, "value", result.source)
@@ -89,7 +135,23 @@ async def get_reddit_client():
     if not health.get("valid"):
         reason = health.get("reason") or "unknown"
         logger.warning(f"Session health check failed: {reason}")
-        # Try one more time with forced refresh
+
+        # Cheap recovery first: if the long-lived reddit_session JWT is still
+        # valid, the anonymous/expired verdict is almost always a stale
+        # short-lived token_v2 — a page GET re-mints it, no re-login needed.
+        if reddit_session_usable(_client.cookies):
+            new_token = await _remint_token_v2(_client)
+            if new_token:
+                _client_cookies_hash = _cookies_hash(_client.cookies)
+                health = await _client.check_session()
+                if health.get("valid"):
+                    logger.info(
+                        f"Session recovered via token_v2 re-mint "
+                        f"(user: {health.get('username')})"
+                    )
+                    return _client
+
+        # Fall back to forced cookie refresh (browser extraction)
         result = await force_reddit_cookie_refresh()
         if result.valid:
             await _client.close()
