@@ -81,20 +81,37 @@ async def get_reddit_client():
 
     _client = RedditAPIClient(result.cookies)
     _client_cookies_hash = new_hash
-    logger.info(f"Reddit API client initialized (source: {result.source.value})")
+    _source = getattr(result.source, "value", result.source)
+    logger.info(f"Reddit API client initialized (source: {_source})")
 
     # Validate session on first init
     health = await _client.check_session()
     if not health.get("valid"):
-        logger.warning(f"Session health check failed: {health.get('reason', 'unknown')}")
+        reason = health.get("reason") or "unknown"
+        logger.warning(f"Session health check failed: {reason}")
         # Try one more time with forced refresh
         result = await force_reddit_cookie_refresh()
         if result.valid:
             await _client.close()
             _client = RedditAPIClient(result.cookies)
             _client_cookies_hash = _cookies_hash(result.cookies)
+            # Re-check the refreshed client too: fresh cookies can still be
+            # anonymous (daemon cache from a not-logged-in browser session).
+            health2 = await _client.check_session()
+            if not health2.get("valid"):
+                await _client.close()
+                _client = None
+                _client_cookies_hash = None
+                raise SessionExpiredError(
+                    f"Reddit session invalid after forced refresh: "
+                    f"{health2.get('reason', 'unknown')}. "
+                    "Run 'reddit-lyr --login' to re-authenticate."
+                )
             logger.info("Reddit API client re-initialized after forced refresh")
         else:
+            await _client.close()
+            _client = None
+            _client_cookies_hash = None
             raise SessionExpiredError(
                 "Reddit session expired after forced refresh. "
                 "Run 'reddit-lyr --login' to re-authenticate."
@@ -143,7 +160,8 @@ async def get_write_reddit_client():
 
     _client = RedditAPIClient(result.cookies)
     _client_cookies_hash = new_hash
-    logger.info(f"Reddit write API client initialized (source: {result.source.value})")
+    _source = getattr(result.source, "value", result.source)
+    logger.info(f"Reddit write API client initialized (source: {_source})")
 
     return _client
 
