@@ -60,6 +60,35 @@ posts = await client.browse_subreddit("rust", sort="hot", limit=25)
 reddit-lyr mcp
 ```
 
+## Multiple accounts
+
+reddit-lyr supports any number of named accounts, each with an isolated cookie
+store under `~/.reddit-lyr/accounts/<name>/`. The default account (the legacy
+top-level `~/.reddit-lyr/cookies.json`) keeps working unchanged for every
+existing workflow.
+
+```bash
+# List accounts
+reddit-lyr --accounts
+
+# Register a new account (import its cookies once)
+REDDIT_ACCOUNT=workmode reddit-lyr --cookies-file workmode-cookies.json
+
+# Operate on it — the flag works before any tool name
+reddit-lyr --account workmode --status
+reddit-lyr --account workmode browse_subreddit rust --limit 5
+REDDIT_ACCOUNT=workmode reddit-lyr mcp   # or via env, for MCP/cron contexts
+
+# Logout only that account
+reddit-lyr --account workmode --logout
+```
+
+Non-interactive contexts (MCP servers, cron jobs) select the account via the
+`REDDIT_ACCOUNT` environment variable. The shared Obscura cookie daemon is
+automatically bypassed for non-default accounts — it caches one session per
+platform and has no account awareness, so it is never allowed to serve a named
+account's requests.
+
 ---
 
 ## MCP Tools (32)

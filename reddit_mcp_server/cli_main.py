@@ -686,6 +686,34 @@ def run_tool_direct(tool_name: str, args: list[str], use_json: bool = False) -> 
 
 def main():
     global FULL_OUTPUT
+    # ── Account selection: global --account flag, before anything else ──
+    # Accepts both `--account NAME` and `--account=NAME`, anywhere in argv.
+    _acct = None
+    _argv = list(sys.argv)
+    i = 1
+    while i < len(_argv):
+        a = _argv[i]
+        if a == "--account" and i + 1 < len(_argv):
+            _acct = _argv[i + 1]
+            del _argv[i:i + 2]
+            continue
+        if a.startswith("--account="):
+            _acct = a.split("=", 1)[1]
+            del _argv[i]
+            continue
+        i += 1
+    if _acct:
+        from reddit_mcp_server.session_state import account_exists, list_accounts
+        if not account_exists(_acct) and _acct != "default":
+            names = ", ".join(a["name"] for a in list_accounts())
+            axi_error(
+                f"Unknown account: '{_acct}'",
+                f"Known accounts: {names}. To register one, run "
+                f"`REDDIT_ACCOUNT={_acct} reddit-lyr --login` (or --cookies-file) once.",
+            )
+        os.environ["REDDIT_ACCOUNT"] = _acct
+        sys.argv = _argv
+
     # ── Direct tool invocation: reddit-lyr <tool_name> [args...] ──────
     # Intercept before argparse so tool names aren't parsed as flags.
     if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
@@ -715,6 +743,11 @@ def main():
     )
     parser.add_argument("--logout", action="store_true", help="Clear stored session")
     parser.add_argument("--status", action="store_true", help="Check authentication status")
+    parser.add_argument(
+        "--accounts",
+        action="store_true",
+        help="List all registered accounts",
+    )
     parser.add_argument("--list-tools", action="store_true", help="List all available MCP tools")
     parser.add_argument(
         "--tool-info", type=str, metavar="TOOL", help="Show details for a specific tool"
@@ -785,6 +818,17 @@ def main():
 
     if args.tool_info:
         tool_info_and_exit(args.tool_info)
+
+    if args.accounts:
+        from reddit_mcp_server.session_state import list_accounts, get_active_account
+
+        print(_toon_object({"status": "ok", "accounts": list_accounts()}))
+        active = get_active_account()
+        print(f"active: {active}")
+        print("help[2]:")
+        print("  Use `--account NAME` to operate on a specific account")
+        print("  Register a new account: REDDIT_ACCOUNT=NAME reddit-lyr --cookies-file <file>")
+        return
 
     if args.login:
         from reddit_mcp_server.cookie_import import import_cookies_interactive

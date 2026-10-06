@@ -16,7 +16,14 @@ from reddit_mcp_server.scraping.api_client import RedditAPIClient
 from reddit_mcp_server.exceptions import SessionExpiredError, AuthenticationError
 
 # Daemon integration flag
-USE_DAEMON = os.getenv("REDDIT_USE_DAEMON", "true").lower() in ("1", "true", "yes", "on")
+# NOTE: the Obscura daemon serves ONE cached cookie set per platform (the
+# default account's). It has no account awareness, so it MUST NOT be used for
+# non-default accounts — it would silently supply the wrong session.
+# Auto-disable unless we are on the default account.
+USE_DAEMON = (
+    os.getenv("REDDIT_USE_DAEMON", "true").lower() in ("1", "true", "yes", "on")
+    and os.getenv("REDDIT_ACCOUNT", "default") == "default"
+)
 
 _client = None
 _client_cookies_hash = None
