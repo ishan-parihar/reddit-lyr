@@ -137,8 +137,8 @@ def normalize_listing(raw: dict, item_type: str = "post") -> dict:
         else SUBREDDIT_FIELDS
     )
 
-    data = raw.get("data", {})
-    children = data.get("children", [])
+    data = raw.get("data") or {}
+    children = (data or {}).get("children", []) or []
     items = [_extract_fields(child.get("data", {}), allowed) for child in children]
 
     return {

@@ -136,10 +136,20 @@ class RedditAPIClient:
         """Cheap health check: call /api/me.json, return structured status."""
         try:
             data = await self.me()
-            d = data.get("data", {})
+            d = data.get("data") or {}
+            username = d.get("name")
+            if not username:
+                # Reddit returns 200 with an anonymous payload (no name/modhash,
+                # loid-based token) when cookies are not actually logged in.
+                return {
+                    "valid": False,
+                    "reason": "Session anonymous: cookies present but not logged in (re-login required)",
+                    "username": None,
+                    "rate_limit_remaining": self._rate_limiter.remaining,
+                }
             return {
                 "valid": True,
-                "username": d.get("name"),
+                "username": username,
                 "modhash_present": bool(d.get("modhash")),
                 "rate_limit_remaining": self._rate_limiter.remaining,
             }
