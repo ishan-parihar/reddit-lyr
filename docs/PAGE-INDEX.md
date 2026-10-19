@@ -10,3 +10,5 @@
 | [`WORKLOG.md`](kb/WORKLOG.md) | LEDGER | Worklog | — |
 | [`feed.md`](kb/feed.md) | LEDGER | Agent feed | — |
 | [`2026-07-29-cli-direct-invocation.md`](superpowers/plans/2026-07-29-cli-direct-invocation.md) | PLAN | CLI Direct Tool Invocation — Parity Gap Plan | — |
+| [`2026-07-29-AXI_AUDIT.md`](audit/2026-07-29-AXI_AUDIT.md) | AXI Audit Report — reddit-lyr — All high and medium priority AXI compliance issues have been fixed. The reddit-lyr CLI now fully conforms to A… |
+| [`RECORDS.md`](RECORDS.md) | LIVE | Records — decisions (AD) and regressions (RG) — Generated zones below are written by genome rec emit; never hand-edit them. Topic → governing record… | — |
