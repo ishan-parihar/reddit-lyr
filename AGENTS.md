@@ -11,6 +11,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Run the CLI locally: `uv run reddit-lyr --status`
 - Run server locally: `uv run -m reddit_mcp_server`
 
+*(Commands reviewed 2026-10-19: uv, ruff and pytest are still the toolchain, so the list stands.)*
+
 ## Tool Return Format
 
 All scraping tools return structured results with `url`, `sections: {name: raw_text}`, and optional `references`, `section_errors`, `unknown_sections`, and `post_ids` keys.
