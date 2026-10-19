@@ -30,6 +30,9 @@
 
 ## What it is
 
+
+- [Page index](docs/PAGE-INDEX.md) — every active doc and the question it owns.
+
 | Layer | Description |
 |-------|-------------|
 | **Core** | `RedditClient` — async, typed, 50+ endpoints |
