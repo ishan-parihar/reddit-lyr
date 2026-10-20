@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -937,7 +937,7 @@ wheels = [
 [[package]]
 name = "obscura-core"
 version = "0.1.0"
-source = { git = "https://github.com/ishan-parihar/obscura-core.git#a59e1b928018292c2d64bf90cdd255fa10c2dfd8" }
+source = { git = "https://github.com/ishan-parihar/obscura-core.git#35695ad9ca09c49cfc160ae8a8ca3ec6460c036c" }
 dependencies = [
     { name = "aiofiles" },
     { name = "browser-cookie3" },
@@ -1396,7 +1396,7 @@ dependencies = [
     { name = "python-dotenv" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1409,12 +1409,15 @@ requires-dist = [
     { name = "fastmcp", specifier = ">=2.0.0" },
     { name = "inquirer", specifier = ">=3.4.0" },
     { name = "obscura-core", git = "https://github.com/ishan-parihar/obscura-core.git" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23" },
+    { name = "ruff", specifier = ">=0.4" },
+]
 
 [[package]]
 name = "referencing"
