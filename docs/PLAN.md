@@ -8,7 +8,7 @@ A Python MCP/CLI tool for full Reddit account automation using browser cookies +
 
 ---
 
-## Architecture
+## Planned Architecture
 
 ```
 reddit-lyr/
