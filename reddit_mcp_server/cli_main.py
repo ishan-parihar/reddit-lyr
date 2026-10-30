@@ -557,6 +557,8 @@ def show_help() -> None:
     print("  reddit-lyr --full            Show complete text fields (no truncation)")
     print("  reddit-lyr --json            Render tool results as JSON (default is TOON)")
     print("  reddit-lyr --help             Show this help message")
+    print("  reddit-lyr update --check    Check for a package update")
+    print("  reddit-lyr update           Update through the owning package manager")
     print()
     print("Environment:")
     print("  REDDIT_COOKIES     JSON string of cookies (loaded at server startup)")
@@ -689,6 +691,12 @@ def run_tool_direct(tool_name: str, args: list[str], use_json: bool = False) -> 
 
 def main():
     global FULL_OUTPUT
+    if len(sys.argv) > 1 and sys.argv[1] in {"update", "upgrade"}:
+        from reddit_mcp_server.updater import run_update
+
+        raise SystemExit(
+            run_update(sys.argv[2:], application="reddit-lyr", package="reddit-lyr")
+        )
     # ── Account selection: global --account flag, before anything else ──
     # Accepts both `--account NAME` and `--account=NAME`, anywhere in argv.
     _acct = None
